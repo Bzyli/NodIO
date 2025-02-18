@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <link rel="stylesheet" href="styles.css">
+  <title>Web Node Editor with Selective Connectors</title>
+</head>
+<body>
+  <div id="editor">
+    <canvas id="connectionsCanvas"></canvas>
+  </div>
+  <div id="popupMenu" class="popup-menu">
+    <ul>
+      <li data-type="default">Default Node</li>
+      <li data-type="text">Text Node</li>
+      <li data-type="image">Image Node</li>
+      <li data-type="inputOnly">Input Only Node</li>
+      <li data-type="outputOnly">Output Only Node</li>
+    </ul>
+  </div>
+  <script type="module" src="index.js"></script>
+</body>
+</html>

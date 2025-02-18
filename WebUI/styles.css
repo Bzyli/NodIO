@@ -1,0 +1,74 @@
+body {
+    margin: 0;
+    overflow: hidden;
+    font-family: Arial, sans-serif;
+    user-select: none;
+  }
+  #editor {
+    width: 100vw;
+    height: 100vh;
+    position: relative;
+    background: #222;
+  }
+  /* Canvas behind nodes for drawing connections */
+  #connectionsCanvas {
+    position: absolute;
+    top: 0;
+    left: 0;
+    pointer-events: none;
+    z-index: 1;
+  }
+  .node {
+    position: absolute;
+    width: 120px;
+    height: 60px;
+    color: white;
+    border-radius: 5px;
+    padding: 10px;
+    cursor: grab;
+    z-index: 2;
+    box-sizing: border-box;
+  }
+  /* Style for connectors (both input and output) */
+  .connector {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: white;
+    position: absolute;
+    cursor: pointer;
+  }
+  /* Input connector on the left */
+  .connector.input {
+    left: -5px;
+    top: 50%;
+    transform: translateY(-50%);
+  }
+  /* Output connector on the right */
+  .connector.output {
+    right: -5px;
+    top: 50%;
+    transform: translateY(-50%);
+  }
+  /* Popup menu styles */
+  .popup-menu {
+    position: absolute;
+    background: #fff;
+    border: 1px solid #ccc;
+    border-radius: 5px;
+    z-index: 1000;
+    display: none;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.3);
+  }
+  .popup-menu ul {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+  }
+  .popup-menu li {
+    padding: 8px 12px;
+    cursor: pointer;
+  }
+  .popup-menu li:hover {
+    background-color: #eee;
+  }
