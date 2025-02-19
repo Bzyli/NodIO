@@ -1,8 +1,8 @@
 import Node from "./Nodes/Node.js";
-import TextNode from "./Nodes/TextNode.js";
-import ImageNode from "./Nodes/ImageNode.js";
 import InputNode from "./Nodes/InputNode.js";
 import OutputNode from "./Nodes/OutputNode.js";
+import LowCutNode from "./Nodes/LowCutNode.js";
+import DelayNode from "./Nodes/DelayNode.js";
 
 class NodeEditor {
   constructor(containerId) {
@@ -79,14 +79,14 @@ class NodeEditor {
     let node;
     if (type === 'default') {
       node = new Node(this, id, x, y);
-    } else if (type === 'text') {
-      node = new TextNode(this, id, x, y);
-    } else if (type === 'image') {
-      node = new ImageNode(this, id, x, y);
     } else if (type === 'inputOnly') {
       node = new InputNode(this, id, x, y);
     } else if (type === 'outputOnly') {
       node = new OutputNode(this, id, x, y);
+    } else if (type === 'lowCut') {
+      node = new LowCutNode(this, id, x, y);
+    } else if (type === 'delay') {
+      node = new DelayNode(this, id, x, y);
     }
     this.nodes.push(node);
   }
@@ -138,6 +138,77 @@ class NodeEditor {
     this.ctx.lineWidth = 2;
     this.ctx.stroke();
   }
+
+  parseSend(writer) {
+    let nodeString = "NODES["
+    this.nodes.forEach(node => {
+      console.log(node.name, node.params);
+      nodeString += node.id + " " + node.name + " " + node.params + ", ";
+    });
+
+    nodeString = nodeString.slice(0, -2) + "]"
+    console.log(nodeString);
+    if(nodeString != "NODE]") {writer.write(new TextEncoder().encode(nodeString));}
+    
+    let connsString = "CONNS["
+    this.connections.forEach(conn => {
+      connsString += conn.from.id + " " + conn.to.id + ", ";
+    });
+
+    connsString = connsString.slice(0, -2) + "] \n"
+    console.log(connsString);
+    if (connsString != "CONN]") {writer.write(new TextEncoder().encode(connsString));}
+  }
 }
 
-new NodeEditor("editor");
+var nodeEditor = new NodeEditor("editor");
+let writer, reader;
+let port;
+
+document.getElementById('connect').addEventListener('click', async () => {
+  try {
+      port = await navigator.serial.requestPort();
+      await port.open({ baudRate: 115200 });
+
+      writer = port.writable.getWriter();
+      reader = port.readable.getReader();
+      while (true) {
+        const { value, done } = await reader.read();
+        if (done) {
+            console.log("Serial connection closed");
+            break;
+        }
+        console.log("Received: ", new TextDecoder().decode(value));
+    }
+  } catch (err) {
+      console.error("Serial connection error: ", err);
+  }
+});
+
+document.getElementById('send').addEventListener('click', async () => {
+  if (!writer) {
+      console.error("Writer not initialized yet!");
+      try {
+        port = await navigator.serial.requestPort();
+        await port.open({ baudRate: 115200 });
+  
+        writer = port.writable.getWriter();
+    } catch (err) {
+        console.error("Serial connection error: ", err);
+    }
+  }
+  nodeEditor.parseSend(writer);
+});
+
+document.getElementById('clear').addEventListener('click', () => {
+  let nodes = document.getElementsByClassName('node');
+
+  while(nodes[0]) {
+    nodes[0].parentNode.removeChild(nodes[0]);
+  }
+  let can = document.getElementById("connectionsCanvas");
+  can.getContext("2d").clearRect(0, 0, can.width, can.height);
+
+  nodeEditor.connections = [];
+  nodeEditor.nodes = []
+});

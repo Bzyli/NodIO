@@ -2,14 +2,21 @@ import Node from "./Node.js";
 // Node with only an input connector
 class OutputNode extends Node {
     createElement() {
+      this.params = 1;
+      this.name = "out";
+      
       this.element = document.createElement('div');
       this.element.classList.add('node');
       this.element.style.left = `${this.x}px`;
       this.element.style.top = `${this.y}px`;
-      // Different background to distinguish it
       this.element.style.background = '#9b59b6';
-      this.element.innerHTML = `Input Only Node ${this.id}`;
-      
+      this.element.innerHTML = `Audio Out`;
+
+      this.element.innerHTML +=  `<select id="param" name="in"><option value="1">Out 1</option><option value="2">Out 2</option></select>`;      
+      this.element.querySelector("#param").addEventListener("input", (e) => {
+        this.params = this.element.querySelector("#param").value;
+      });
+
       // Only create the input connector (left side)
       this.inputConnector = document.createElement('div');
       this.inputConnector.classList.add('connector', 'input');

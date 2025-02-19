@@ -1,13 +1,20 @@
 import Node from "./Node.js";
-class TextNode extends Node {
+class DelayNode extends Node {
     createElement() {
+      this.params = 100;
+      this.name = "delay";
+
       this.element = document.createElement('div');
       this.element.classList.add('node');
       this.element.style.left = `${this.x}px`;
       this.element.style.top = `${this.y}px`;
-      // Custom styling for text node
-      this.element.style.background = '#e67e22';
-      this.element.innerHTML = `Text Node ${this.id}`;
+      this.element.style.background = '#2ecc71';
+      this.element.innerHTML = `Delay`;
+
+      this.element.innerHTML += `<input id="param" type="number" id="delay" name="delay" min="1" max="1000" step="2" />`;
+      this.element.querySelector("#param").addEventListener("input", (e) => {
+        this.params = this.element.querySelector("#param").value;
+      });
       
       // Create connectors (both)
       this.outputConnector = document.createElement('div');
@@ -24,4 +31,4 @@ class TextNode extends Node {
     }
   }
 
-export default TextNode;
+export default DelayNode;

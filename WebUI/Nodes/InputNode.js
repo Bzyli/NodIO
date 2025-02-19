@@ -2,14 +2,21 @@ import Node from "./Node.js";
 // Node with only an output connector
 class InputNode extends Node {
     createElement() {
+      this.params = 1;
+      this.name = "in";
+
       this.element = document.createElement('div');
       this.element.classList.add('node');
       this.element.style.left = `${this.x}px`;
       this.element.style.top = `${this.y}px`;
-      // Different background to distinguish it
       this.element.style.background = '#f39c12';
-      this.element.innerHTML = `Output Only Node ${this.id}`;
-      
+      this.element.innerHTML = `Audio In`;
+
+      this.element.innerHTML +=  `<select id="param" name="in"><option value="1">In 1</option><option value="2">In 2</option></select>`;
+      this.element.querySelector("#param").addEventListener("input", (e) => {
+        this.params = this.element.querySelector("#param").value;
+      });
+
       // Only create the output connector (right side)
       this.outputConnector = document.createElement('div');
       this.outputConnector.classList.add('connector', 'output');
@@ -19,6 +26,7 @@ class InputNode extends Node {
       this.initDrag();
       this.initConnectors();
     }
+    
     initConnectors() {
       // Only set up event for output connector
       this.outputConnector.addEventListener('mousedown', (e) => {

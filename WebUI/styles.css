@@ -18,6 +18,27 @@ body {
     pointer-events: none;
     z-index: 1;
   }
+  button {
+    width: 120px;
+    height: 60px;
+    top:10px;
+    position: absolute;
+    border-radius: 5px;
+    padding: 10px;
+  }
+  #clear {
+    background-color:crimson;
+    right:140px;
+  }
+  #send {
+    background-color:forestgreen;
+    right:10px;
+  }
+  #connect{
+    right:270px;
+    background-color: beige;
+  }
+
   .node {
     position: absolute;
     width: 120px;

@@ -1,13 +1,20 @@
 import Node from "./Node.js";
-class ImageNode extends Node {
+class LowCutNode extends Node {
     createElement() {
+      this.params = 100;
+      this.name = "lowcut";
+
       this.element = document.createElement('div');
       this.element.classList.add('node');
       this.element.style.left = `${this.x}px`;
       this.element.style.top = `${this.y}px`;
-      // Custom styling for image node
       this.element.style.background = '#2ecc71';
-      this.element.innerHTML = `Image Node ${this.id}`;
+      this.element.innerHTML = `LowCut`;
+
+      this.element.innerHTML += `<input id="param" type="number" id="tentacles" name="tentacles" min="10" max="1000" step="2" />`;
+      this.element.querySelector("#param").addEventListener("input", (e) => {
+        this.params = this.element.querySelector("#param").value;
+      });
       
       // Create connectors (both)
       this.outputConnector = document.createElement('div');
@@ -24,4 +31,4 @@ class ImageNode extends Node {
     }
   }
 
-export default ImageNode;
+export default LowCutNode;
