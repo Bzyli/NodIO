@@ -1,61 +1,81 @@
 #include "AudioMixer.h"
+#include <math.h>  // Pour powf()
 
 // 🎛️ Déclaration des objets audio
-AudioSynthWaveform sineWave1;
-AudioSynthWaveform sineWave2;
+AudioSynthNoiseWhite noise1;
+AudioSynthNoiseWhite noise2;
 AudioMixer4 mixer;
+AudioFilterBiquad filter1;
+AudioFilterBiquad filter2;
 AudioOutputI2S audioOutput;
 AudioControlSGTL5000 audioShield;
 
-// Connexion des objets audio
-AudioConnection patchCord1(sineWave1, 0, mixer, 0);
-AudioConnection patchCord2(sineWave2, 0, mixer, 1);
-AudioConnection patchCord3(mixer, 0, audioOutput, 0);
-AudioConnection patchCord4(mixer, 0, audioOutput, 1);
+// 🔗 Connexions Audio (ajout des filtres avant le mixeur)
+AudioConnection patchCord1(noise1, 0, filter1, 0);  
+AudioConnection patchCord2(noise2, 0, filter2, 0);  
+AudioConnection patchCord3(filter1, 0, mixer, 0);
+AudioConnection patchCord4(filter2, 0, mixer, 1);
+AudioConnection patchCord5(mixer, 0, audioOutput, 0);
+AudioConnection patchCord6(mixer, 0, audioOutput, 1);
 
 // 🎚️ Initialisation de l'audio
 void setupAudio() {
-    AudioMemory(10);
+    AudioMemory(20);
     audioShield.enable();
     audioShield.volume(0.5);
 
-    // Configuration des oscillateurs
-    sineWave1.frequency(440); // 440 Hz (La)
-    sineWave1.amplitude(0.5);
-
-    sineWave2.frequency(880); // 880 Hz (La octave supérieure)
-    sineWave2.amplitude(0.5);
+    // Configuration du bruit blanc
+    noise1.amplitude(0.5);
+    noise2.amplitude(0.5);
 
     // Valeurs initiales du mixeur
-    mixer.gain(0, 0.5); // Canal 0 à 50%
-    mixer.gain(1, 0.5); // Canal 1 à 50%
+    mixer.gain(0, 1.0);
+    mixer.gain(1, 1.0);
+
+    // 🎛️ Initialisation des filtres
+    setBandEQ(0, 500, 5000, 0);
+    setBandEQ(1, 500, 5000, 0);
 }
 
-// 🎛️ Traitement des commandes reçues par USB
+// 🎚️ Fonction pour modifier l'égalisation
+void setBandEQ(int channel, float freq1, float freq2, float gainDB) {
+    if (channel < 0 || channel > 1 || freq1 < 20 || freq2 > 20000 || freq1 >= freq2) {
+        Serial.println("Erreur: paramètres invalides !");
+        return;
+    }
+
+    // Convertir dB en gain linéaire
+    float linearGain = powf(10.0, gainDB / 20.0);  
+
+    // Calcul de la fréquence centrale et du facteur Q
+    float centerFreq = (freq1 + freq2) / 2.0;
+    float qFactor = centerFreq / (freq2 - freq1);
+
+    // Appliquer le filtre passe-bande et ajuster le gain en sortie
+    if (channel == 0) {
+        filter1.setBandpass(0, centerFreq, qFactor);
+        mixer.gain(0, linearGain);  // Appliquer l'atténuation après filtrage
+        Serial.printf("🎚️ EQ canal 0 : %.1f Hz - %.1f Hz, Gain = %.1f dB (linéaire %.3f), Q = %.2f\n", 
+                      freq1, freq2, gainDB, linearGain, qFactor);
+    } else if (channel == 1) {
+        filter2.setBandpass(0, centerFreq, qFactor);
+        mixer.gain(1, linearGain);  // Appliquer l'atténuation après filtrage
+        Serial.printf("🎚️ EQ canal 1 : %.1f Hz - %.1f Hz, Gain = %.1f dB (linéaire %.3f), Q = %.2f\n", 
+                      freq1, freq2, gainDB, linearGain, qFactor);
+    }
+}
+
+
+
+// 🎛️ Traitement des commandes USB
 void processCommand(String command) {
-    command.trim(); // Supprime les espaces inutiles
+    command.trim();
 
-    if (command.startsWith("MIX")) {
+    if (command.startsWith("FILTER")) {
         int channel;
-        float gain;
-        sscanf(command.c_str(), "MIX %d %f", &channel, &gain);
-
-        if (channel >= 0 && channel < 4) {
-            mixer.gain(channel, gain);
-            Serial.printf("Canal %d réglé à %.2f\n", channel, gain);
-        } else {
-            Serial.println("Erreur: canal invalide !");
-        }
-    } 
-    else if (command.startsWith("FREQ")) {
-        int osc;
-        float freq;
-        sscanf(command.c_str(), "FREQ %d %f", &osc, &freq);
-
-        if (osc == 0) sineWave1.frequency(freq);
-        else if (osc == 1) sineWave2.frequency(freq);
-        
-        Serial.printf("Oscillateur %d réglé à %.2f Hz\n", osc, freq);
+        float freq1, freq2, gainDB;
+        sscanf(command.c_str(), "FILTER %d %f %f %f", &channel, &freq1, &freq2, &gainDB);
+        setBandEQ(channel, freq1, freq2, gainDB);
     }
     else {
         Serial.println("Commande inconnue !");

@@ -9,14 +9,17 @@
 #include <SerialFlash.h>
 
 // 🎛️ Définition des objets audio
-extern AudioSynthWaveform sineWave1;  // Onde sinusoïdale 1
-extern AudioSynthWaveform sineWave2;  // Onde sinusoïdale 2
-extern AudioMixer4 mixer;             // Mixer 4 entrées
-extern AudioOutputI2S audioOutput;    // Sortie audio (casque, haut-parleur)
-extern AudioControlSGTL5000 audioShield; // Contrôle du shield audio
+extern AudioSynthNoiseWhite noise1;
+extern AudioSynthNoiseWhite noise2;
+extern AudioMixer4 mixer;
+extern AudioFilterBiquad filter1;  // 🎚️ Filtre pour canal 0
+extern AudioFilterBiquad filter2;  // 🎚️ Filtre pour canal 1
+extern AudioOutputI2S audioOutput;
+extern AudioControlSGTL5000 audioShield;
 
 // 🔊 Fonctions
 void setupAudio();
 void processCommand(String command);
+void setBandEQ(int channel, float freq1, float freq2, float gainDB);
 
 #endif // AUDIO_MIXER_H
