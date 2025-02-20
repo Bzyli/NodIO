@@ -7,7 +7,7 @@
 typedef struct {
     int id;
     char type[10]; 
-    int param;    
+    float param;    
     void *audioObj; 
 } Node;
 
@@ -22,8 +22,8 @@ AudioConnection* audioConns[MAX_CONNS];
 int nodeCount = 0, connCount = 0;
 
 // Teensy Audio Objects
-AudioInputI2S    *audioInput = nullptr;
-AudioOutputI2S   *audioOutput = nullptr;
+AudioInputI2S  audioInput;
+AudioOutputI2S audioOutput;
 AudioStream      *effects[MAX_NODES] = {nullptr};  // Handles both lowcut and delay
 
 // Audio Control
@@ -47,11 +47,6 @@ void resetAudioGraph() {
             effects[i] = nullptr;
         }
     }
-
-    if (audioInput) delete audioInput;
-    if (audioOutput) delete audioOutput;
-    audioInput = nullptr;
-    audioOutput = nullptr;
 }
 
 void parseConfig(char *config) {
@@ -71,26 +66,34 @@ void parseConfig(char *config) {
     while (token && nodeCount < MAX_NODES) {
         token = skipSpaces(token);
         Node n;
-        int items = sscanf(token, "%d %9s %d", &n.id, n.type, &n.param);
+        int items = sscanf(token, "%d %9s %f", &n.id, n.type, &n.param);
         if (items >= 2) {
-            if (items == 2) n.param = 0;
+            if (items == 2) n.param = 0.0f;
 
             if (strcmp(n.type, "in") == 0) {
-                if (!audioInput) audioInput = new AudioInputI2S();
-                n.audioObj = audioInput;
+                n.audioObj = &audioInput;
             }
             else if (strcmp(n.type, "out") == 0) {
-                if (!audioOutput) audioOutput = new AudioOutputI2S();
-                n.audioObj = audioOutput;
+                n.audioObj = &audioOutput;
             }
             else if (strcmp(n.type, "lowcut") == 0) {
                 effects[nodeCount] = new AudioFilterBiquad();
-                ((AudioFilterBiquad*)effects[nodeCount])->setHighpass(0, n.param, 0.7);
+                ((AudioFilterBiquad*)effects[nodeCount])->setHighpass(0, (int) n.param, 0.7);
                 n.audioObj = effects[nodeCount];
             }
             else if (strcmp(n.type, "delay") == 0) {
                 effects[nodeCount] = new AudioEffectDelay();
-                ((AudioEffectDelay*)effects[nodeCount])->delay(0, n.param); // Apply delay in milliseconds
+                ((AudioEffectDelay*)effects[nodeCount])->delay(0,(int) n.param); // Apply delay in milliseconds
+                n.audioObj = effects[nodeCount];
+            } else if (strcmp(n.type, "volume") == 0) {
+                effects[nodeCount] = new AudioAmplifier();
+                ((AudioAmplifier*)effects[nodeCount])->gain(n.param);
+                Serial.print("got volume");
+                Serial.println(n.param / 1.0);
+                n.audioObj = effects[nodeCount];
+            } else if (strcmp(n.type, "reverb") == 0) {
+                effects[nodeCount] = new AudioEffectReverb();
+                ((AudioEffectReverb*)effects[nodeCount])->reverbTime((int) n.param);
                 n.audioObj = effects[nodeCount];
             }
 

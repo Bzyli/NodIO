@@ -3,6 +3,8 @@ import InputNode from "./Nodes/InputNode.js";
 import OutputNode from "./Nodes/OutputNode.js";
 import LowCutNode from "./Nodes/LowCutNode.js";
 import DelayNode from "./Nodes/DelayNode.js";
+import VolumeNode from "./Nodes/VolumeNode.js";
+import ReverbNode from "./Nodes/ReverbNode.js";
 
 class NodeEditor {
   constructor(containerId) {
@@ -87,6 +89,10 @@ class NodeEditor {
       node = new LowCutNode(this, id, x, y);
     } else if (type === 'delay') {
       node = new DelayNode(this, id, x, y);
+    } else if (type === 'volume') {
+      node = new VolumeNode(this, id, x, y);
+    } else if (type === 'reverb') {
+      node = new ReverbNode(this, id, x, y);
     }
     this.nodes.push(node);
   }
