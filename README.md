@@ -14,4 +14,5 @@
 - Changer volume :        MIX canal [0;1] 
 - Changer oscillateur :   FREQ canal [0;1000]  
 - Egalisateur de fréq :   FILTER canal freq1 freq2 gain_dB
+- Compresseur         :   5 params (Attack, Makeup Gain, Ratio, Release and Threshold)
 
