@@ -68,6 +68,24 @@ void setMix(int channel, float gainDB) {
     Serial.printf("🎛️ Mixeur canal %d : %.1f dB (linéaire %.3f)\n", channel, gainDB, targetGain);
 }
 
+// 🎚️ Fonction pour modifier la fréquence d'un oscillateur
+void setFrequency(int osc, float freq) {
+    if (freq < 20 || freq > 20000) {
+        Serial.println("Erreur: fréquence hors limites (20 Hz - 20 kHz) !");
+        return;
+    }
+
+    if (osc == 0) {
+        sineWave1.frequency(freq);
+        Serial.printf("🎛️ Oscillateur 0 réglé à %.2f Hz\n", freq);
+    } else if (osc == 1) {
+        sineWave2.frequency(freq);
+        Serial.printf("🎛️ Oscillateur 1 réglé à %.2f Hz\n", freq);
+    } else {
+        Serial.println("Erreur: oscillateur invalide !");
+    }
+}
+
 // 🎚️ Fonction pour modifier l'égalisation
 void setBandEQ(int channel, float freq1, float freq2, float gainDB) {
     if (channel < 0 || channel > 1 || freq1 < 20 || freq2 > 20000 || freq1 >= freq2) {
@@ -106,10 +124,19 @@ void processCommand(String command) {
         sscanf(command.c_str(), "MIX %d %f", &channel, &gainDB);
         setMix(channel, gainDB);
     }
-    if (command.startsWith("FILTER")) {
+    else if (command.startsWith("FILTER")) {
         int channel;
         float freq1, freq2, gainDB;
         sscanf(command.c_str(), "FILTER %d %f %f %f", &channel, &freq1, &freq2, &gainDB);
         setBandEQ(channel, freq1, freq2, gainDB);
+    }
+    else if (command.startsWith("FREQ")) {
+        int osc;
+        float freq;
+        sscanf(command.c_str(), "FREQ %d %f", &osc, &freq);
+        setFrequency(osc, freq);
+    }
+    else {
+        Serial.println("Commande inconnue !");
     }
 }

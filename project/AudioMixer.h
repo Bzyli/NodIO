@@ -25,5 +25,6 @@ void setupAudio();
 void processCommand(String command);
 void setMix(int channel, float gainDB);
 void setBandEQ(int channel, float freq1, float freq2, float gainDB);
+void setFrequency(int osc, float freq); // 🎛️ Fonction pour modifier la fréquence
 
 #endif // AUDIO_MIXER_H
