@@ -96,7 +96,8 @@ void parseConfig(char *config) {
         }
         else if (strcmp(n.type, "lowcut") == 0) {
             effects[nodeCount] = new AudioFilterBiquad();
-            ((AudioFilterBiquad*)effects[nodeCount])->setHighpass(0, n.params[0] / AUDIO_SAMPLE_RATE_EXACT, 0.7);
+            ((AudioFilterBiquad*)effects[nodeCount])->setHighpass(0, n.params[0], 0.707);
+            ((AudioFilterBiquad*)effects[nodeCount])->setHighpass(1, n.params[0], 0.707);
             n.audioObj = effects[nodeCount];
         }
         else if (strcmp(n.type, "delay") == 0) {
@@ -108,8 +109,9 @@ void parseConfig(char *config) {
             ((AudioAmplifier*)effects[nodeCount])->gain(n.params[0]);
             n.audioObj = effects[nodeCount];
         } else if (strcmp(n.type, "reverb") == 0) {
-            effects[nodeCount] = new AudioEffectReverb();
-            ((AudioEffectReverb*)effects[nodeCount])->reverbTime((int) n.params[0]);
+            effects[nodeCount] = new AudioEffectFreeverb();
+            ((AudioEffectFreeverb*)effects[nodeCount])->roomsize( n.params[0]);
+            ((AudioEffectFreeverb*)effects[nodeCount])->damping(n.params[1]);
             n.audioObj = effects[nodeCount];
         } else if (strcmp(n.type, "compressor") == 0) {
             effects[nodeCount] = new Compressor();
@@ -118,7 +120,6 @@ void parseConfig(char *config) {
             ((Compressor*)effects[nodeCount])->setParamValue("ratio", n.params[1]);
             ((Compressor*)effects[nodeCount])->setParamValue("attack", n.params[2]);
             ((Compressor*)effects[nodeCount])->setParamValue("release", n.params[3]);
-            Serial.println(((Compressor*)effects[nodeCount])->getParamValue("threshold"));
         } else if (strcmp(n.type, "gate") == 0) {
             Serial.println("Gate");
         }

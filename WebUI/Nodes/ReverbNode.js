@@ -8,13 +8,16 @@ class ReverbNode extends Node {
       this.element.classList.add('node');
       this.element.style.left = `${this.x}px`;
       this.element.style.top = `${this.y}px`;
+      this.element.style.height = "120px";
       this.element.style.background = '#2ecc71';
-      this.element.innerHTML = `Reverb`;
+      this.element.innerHTML = `Reverb </br>`;
 
-      this.element.innerHTML += `<input id="param" type="number" id="delay" name="delay" min="1" max="1000" step="2" value="15" />`;
+      this.element.innerHTML += `Roomsize <input id="param" type="number" class="roomsize" name="delay" min="0" max="1" step="0.01" value="0.3" />`;
+      this.element.innerHTML += `Damping <input id="param" type="number" class="damping" name="damping" min="0" max="1" step="0.01" value="0.3" /> `
       this.element.querySelector("#param").addEventListener("input", (e) => {
         this.params = [];
-        this.params.push(this.element.querySelector("#param").value);
+        this.params.push(this.element.querySelector(".roomsize").value);
+        this.params.push(this.element.querySelector(".damping").value);
       });
       
       // Create connectors (both)
