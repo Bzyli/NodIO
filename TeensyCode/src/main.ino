@@ -1,5 +1,6 @@
 #include <Arduino.h>
 #include <Audio.h>
+#include "nodes/Compressor/Compressor.h"
 
 #define MAX_NODES 10
 #define MAX_CONNS 10
@@ -7,7 +8,8 @@
 typedef struct {
     int id;
     char type[10]; 
-    float param;    
+    float params[5];
+    int paramCount = 0;    
     void *audioObj; 
 } Node;
 
@@ -66,39 +68,61 @@ void parseConfig(char *config) {
     while (token && nodeCount < MAX_NODES) {
         token = skipSpaces(token);
         Node n;
-        int items = sscanf(token, "%d %9s %f", &n.id, n.type, &n.param);
-        if (items >= 2) {
-            if (items == 2) n.param = 0.0f;
 
-            if (strcmp(n.type, "in") == 0) {
-                n.audioObj = &audioInput;
-            }
-            else if (strcmp(n.type, "out") == 0) {
-                n.audioObj = &audioOutput;
-            }
-            else if (strcmp(n.type, "lowcut") == 0) {
-                effects[nodeCount] = new AudioFilterBiquad();
-                ((AudioFilterBiquad*)effects[nodeCount])->setHighpass(0, (int) n.param, 0.7);
-                n.audioObj = effects[nodeCount];
-            }
-            else if (strcmp(n.type, "delay") == 0) {
-                effects[nodeCount] = new AudioEffectDelay();
-                ((AudioEffectDelay*)effects[nodeCount])->delay(0,(int) n.param); // Apply delay in milliseconds
-                n.audioObj = effects[nodeCount];
-            } else if (strcmp(n.type, "volume") == 0) {
-                effects[nodeCount] = new AudioAmplifier();
-                ((AudioAmplifier*)effects[nodeCount])->gain(n.param);
-                Serial.print("got volume");
-                Serial.println(n.param / 1.0);
-                n.audioObj = effects[nodeCount];
-            } else if (strcmp(n.type, "reverb") == 0) {
-                effects[nodeCount] = new AudioEffectReverb();
-                ((AudioEffectReverb*)effects[nodeCount])->reverbTime((int) n.param);
-                n.audioObj = effects[nodeCount];
-            }
-
-            nodes[nodeCount++] = n;
+         // Read id and type first
+        char *ptr = token;
+        int offset = 0;
+        int items = sscanf(ptr, "%d %10s%n", &n.id, n.type, &offset);
+        if (items < 2) {
+            token = strtok(NULL, ",");
+            continue;  // Skip invalid nodes
         }
+        ptr += offset;  // Advance pointer to after the parsed content
+
+        float param;
+        int numChars = 0;
+        while (ptr && sscanf(ptr, "%f%n", &param, &numChars) == 1) {
+            n.params[n.paramCount++] = param;
+            ptr += numChars;           // Advance pointer past the scanned number
+            ptr = skipSpaces(ptr);     // Skip any whitespace if necessary
+        }
+
+        Serial.println(n.type);
+        if (strcmp(n.type, "in") == 0) {
+            n.audioObj = &audioInput;
+        }
+        else if (strcmp(n.type, "out") == 0) {
+            n.audioObj = &audioOutput;
+        }
+        else if (strcmp(n.type, "lowcut") == 0) {
+            effects[nodeCount] = new AudioFilterBiquad();
+            ((AudioFilterBiquad*)effects[nodeCount])->setHighpass(0, n.params[0] / AUDIO_SAMPLE_RATE_EXACT, 0.7);
+            n.audioObj = effects[nodeCount];
+        }
+        else if (strcmp(n.type, "delay") == 0) {
+            effects[nodeCount] = new AudioEffectDelay();
+            ((AudioEffectDelay*)effects[nodeCount])->delay(0,(int) n.params[0]); // Apply delay in milliseconds
+            n.audioObj = effects[nodeCount];
+        } else if (strcmp(n.type, "volume") == 0) {
+            effects[nodeCount] = new AudioAmplifier();
+            ((AudioAmplifier*)effects[nodeCount])->gain(n.params[0]);
+            n.audioObj = effects[nodeCount];
+        } else if (strcmp(n.type, "reverb") == 0) {
+            effects[nodeCount] = new AudioEffectReverb();
+            ((AudioEffectReverb*)effects[nodeCount])->reverbTime((int) n.params[0]);
+            n.audioObj = effects[nodeCount];
+        } else if (strcmp(n.type, "compressor") == 0) {
+            effects[nodeCount] = new Compressor();
+            ((Compressor*)effects[nodeCount])->setParamValue("threshold", n.params[0]);
+            ((Compressor*)effects[nodeCount])->setParamValue("makeupGain", 3);
+            ((Compressor*)effects[nodeCount])->setParamValue("ratio", n.params[1]);
+            ((Compressor*)effects[nodeCount])->setParamValue("attack", n.params[2]);
+            ((Compressor*)effects[nodeCount])->setParamValue("release", n.params[3]);
+            Serial.println(((Compressor*)effects[nodeCount])->getParamValue("threshold"));
+        } else if (strcmp(n.type, "gate") == 0) {
+            Serial.println("Gate");
+        }
+        nodes[nodeCount++] = n;
         token = strtok(NULL, ",");
     }
     *nodesEnd = ']';
@@ -132,8 +156,8 @@ void parseConfig(char *config) {
         }
 
         if (fromNode && toNode && fromNode->audioObj && toNode->audioObj) {
-            int fromChannel = (strcmp(fromNode->type, "in") == 0) ? fromNode->param - 1 : 0;
-            int toChannel = (strcmp(toNode->type, "out") == 0) ? toNode->param - 1 : 0;
+            int fromChannel = (strcmp(fromNode->type, "in") == 0) ? fromNode->params[0] - 1 : 0;
+            int toChannel = (strcmp(toNode->type, "out") == 0) ? toNode->params[0] - 1 : 0;
             audioConns[i] = new AudioConnection(*(AudioStream*)fromNode->audioObj, fromChannel, *(AudioStream*)toNode->audioObj, toChannel);
         }
     }
@@ -148,6 +172,7 @@ void setup() {
     AudioMemory(400);
     audioShield.enable();
     audioShield.inputSelect(AUDIO_INPUT_LINEIN);
+    audioShield.volume(0.8);
     Serial.println("Waiting for input...");
 }
 

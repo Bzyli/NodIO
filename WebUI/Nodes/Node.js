@@ -53,6 +53,11 @@ class Node {
         document.addEventListener('mousemove', onMouseMove);
         document.addEventListener('mouseup', onMouseUp);
       });
+
+      this.element.addEventListener('contextmenu', (e) => {
+        e.preventDefault();
+        this.editor.deleteNode(this);
+    });
     }
 
     initConnectors() {

@@ -1,7 +1,7 @@
 import Node from "./Node.js";
 class VolumeNode extends Node {
     createElement() {
-      this.params = 100;
+      this.params = [0.8];
       this.name = "volume";
 
       this.element = document.createElement('div');
@@ -13,7 +13,8 @@ class VolumeNode extends Node {
 
       this.element.innerHTML += `<input id="param" type="range" id="volume" name="volume" min="0" max="2" step="0.01" value="0.5"/>`;
       this.element.querySelector("#param").addEventListener("input", (e) => {
-        this.params = this.element.querySelector("#param").value;
+        this.params = [];
+        this.params.push(this.element.querySelector("#param").value);
       });
       
       // Create connectors (both)

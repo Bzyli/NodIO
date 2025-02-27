@@ -5,6 +5,8 @@ import LowCutNode from "./Nodes/LowCutNode.js";
 import DelayNode from "./Nodes/DelayNode.js";
 import VolumeNode from "./Nodes/VolumeNode.js";
 import ReverbNode from "./Nodes/ReverbNode.js";
+import CompressorNode from "./Nodes/CompressorNode.js";
+import GateNode from "./Nodes/GateNode.js";
 
 class NodeEditor {
   constructor(containerId) {
@@ -16,17 +18,20 @@ class NodeEditor {
     this.initPopupMenu();
     this.initEvents();
   }
+
   initCanvas() {
     this.canvas = document.getElementById('connectionsCanvas');
     this.ctx = this.canvas.getContext('2d');
     this.resizeCanvas();
     window.addEventListener('resize', () => this.resizeCanvas());
   }
+
   resizeCanvas() {
     this.canvas.width = this.container.clientWidth;
     this.canvas.height = this.container.clientHeight;
     this.drawConnections();
   }
+
   initPopupMenu() {
     this.popupMenu = document.getElementById('popupMenu');
     // On double-click, show the popup menu at the click position.
@@ -40,6 +45,7 @@ class NodeEditor {
         this.hidePopup();
       }
     });
+
     // Create node based on the menu selection.
     this.popupMenu.querySelectorAll('li').forEach(item => {
       item.addEventListener('click', (e) => {
@@ -49,6 +55,7 @@ class NodeEditor {
       });
     });
   }
+
   initEvents() {
     // Update temporary connection line while dragging.
     document.addEventListener('mousemove', (e) => {
@@ -59,13 +66,19 @@ class NodeEditor {
         this.drawConnections();
       }
     });
+
     // Cancel connection if mouseup occurs outside a valid input connector.
     document.addEventListener('mouseup', (e) => {
       if (this.currentConnection) {
         this.cancelConnection();
       }
     });
+
+    document.addEventListener('contextmenu', (e) => {
+      this.onRightClickCanvas(e);
+    });
   }
+
   showPopup(x, y) {
     this.popupMenu.style.left = `${x}px`;
     this.popupMenu.style.top = `${y}px`;
@@ -73,9 +86,11 @@ class NodeEditor {
     this.popupMenuX = x;
     this.popupMenuY = y;
   }
+
   hidePopup() {
     this.popupMenu.style.display = 'none';
   }
+
   createNode(type, x, y) {
     const id = this.nodes.length + 1;
     let node;
@@ -93,9 +108,27 @@ class NodeEditor {
       node = new VolumeNode(this, id, x, y);
     } else if (type === 'reverb') {
       node = new ReverbNode(this, id, x, y);
+    } else if (type === 'compressor') {
+      node = new CompressorNode(this, id, x, y);
+    } else if (type === 'gate') {
+      node = new GateNode(this, id, x, y);
     }
     this.nodes.push(node);
   }
+
+  deleteNode(node) {
+    // Remove node from array
+    this.nodes = this.nodes.filter(n => n !== node);
+    node.element.remove();
+    
+    // Remove associated connections
+    this.connections = this.connections.filter(conn => 
+        conn.fromNode !== node && conn.toNode !== node
+    );
+    
+    this.drawConnections();
+  }
+
   startConnection(fromNode, startX, startY) {
     this.currentConnection = {
       from: fromNode,
@@ -105,7 +138,8 @@ class NodeEditor {
       tempY: startY
     };
   }
-  finishConnection(toNode, endX, endY) {
+
+  finishConnection(toNode) {
     // Create a permanent connection (ignoring self-connections)
     this.connections.push({
       from: this.currentConnection.from,
@@ -114,10 +148,12 @@ class NodeEditor {
     this.currentConnection = null;
     this.drawConnections();
   }
+
   cancelConnection() {
     this.currentConnection = null;
     this.drawConnections();
   }
+
   drawConnections() {
     this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
     // Draw permanent connections.
@@ -136,6 +172,34 @@ class NodeEditor {
       );
     }
   }
+
+  deleteConnection(connection) {
+    this.connections = this.connections.filter(conn => conn !== connection);
+    this.drawConnections();
+  }
+
+  onRightClickCanvas(event) {
+    event.preventDefault();
+    const { offsetX, offsetY } = event;
+  
+    // Check if right-clicked on a connection
+    const connection = this.connections.find(conn => {
+      this.isNearConnection(conn, offsetX, offsetY)
+    });
+    console.log(connection);
+    if (connection) {
+      this.deleteConnection(connection);
+    }
+  }
+
+  isNearConnection(connection, x, y) {
+    const { from, to } = connection;
+    const midX = (from.x + to.x) / 2;
+    const midY = (from.y + to.y) / 2;
+    console.log(Math.abs(midX - x) < 10 && Math.abs(midY - y) < 10)
+    return Math.abs(midX - x) < 10 && Math.abs(midY - y) < 10;
+  }
+
   drawLine(x1, y1, x2, y2) {
     this.ctx.beginPath();
     this.ctx.moveTo(x1, y1);
@@ -148,8 +212,7 @@ class NodeEditor {
   parseSend(writer) {
     let nodeString = "NODES["
     this.nodes.forEach(node => {
-      console.log(node.name, node.params);
-      nodeString += node.id + " " + node.name + " " + node.params + ", ";
+      nodeString += node.id + " " + node.name + " " + node.params.join(" ") + " , ";
     });
 
     nodeString = nodeString.slice(0, -2) + "]"

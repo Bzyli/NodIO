@@ -1,7 +1,7 @@
 import Node from "./Node.js";
 class LowCutNode extends Node {
     createElement() {
-      this.params = 100;
+      this.params = [100];
       this.name = "lowcut";
 
       this.element = document.createElement('div');
@@ -11,9 +11,10 @@ class LowCutNode extends Node {
       this.element.style.background = '#2ecc71';
       this.element.innerHTML = `LowCut`;
 
-      this.element.innerHTML += `<input id="param" type="number" id="tentacles" name="tentacles" min="10" max="1000" step="2" />`;
+      this.element.innerHTML += `<input id="param" type="number" id="lowcut" name="lowcut" value="100" min="10" max="1000" step="2" />`;
       this.element.querySelector("#param").addEventListener("input", (e) => {
-        this.params = this.element.querySelector("#param").value;
+        this.params = [];
+        this.params.push(this.element.querySelector("#param").value);
       });
       
       // Create connectors (both)

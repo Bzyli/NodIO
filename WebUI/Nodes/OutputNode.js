@@ -2,7 +2,7 @@ import Node from "./Node.js";
 // Node with only an input connector
 class OutputNode extends Node {
     createElement() {
-      this.params = 1;
+      this.params = [1];
       this.name = "out";
       
       this.element = document.createElement('div');
@@ -14,7 +14,8 @@ class OutputNode extends Node {
 
       this.element.innerHTML +=  `<select id="param" name="in"><option value="1">Out 1</option><option value="2">Out 2</option></select>`;      
       this.element.querySelector("#param").addEventListener("input", (e) => {
-        this.params = this.element.querySelector("#param").value;
+        this.params = [];
+        this.params.push(this.element.querySelector("#param").value);
       });
 
       // Only create the input connector (left side)
