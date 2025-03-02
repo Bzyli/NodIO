@@ -1,9 +1,11 @@
 #include <Arduino.h>
 #include <Audio.h>
 #include "nodes/Compressor/Compressor.h"
+#include "nodes/peakEq/peakEq.h"
+#include "nodes/newNoiseGate/newNoiseGate.h"
 
 #define MAX_NODES 10
-#define MAX_CONNS 10
+#define MAX_CONNS 10 // This number is quite random since we don't know how much space we use on the teensy
 
 typedef struct {
     int id;
@@ -18,25 +20,27 @@ typedef struct {
     int to;
 } Connection;
 
-Node nodes[MAX_NODES];
-Connection conns[MAX_CONNS];
-AudioConnection* audioConns[MAX_CONNS];
+Node nodes[MAX_NODES]; // Array of Nodes
+Connection conns[MAX_CONNS]; // Array of Connections
+AudioConnection* audioConns[MAX_CONNS]; // Array of PatchCoord
 int nodeCount = 0, connCount = 0;
 
 // Teensy Audio Objects
 AudioInputI2S  audioInput;
 AudioOutputI2S audioOutput;
-AudioStream      *effects[MAX_NODES] = {nullptr};  // Handles both lowcut and delay
+AudioStream      *effects[MAX_NODES] = {nullptr};  // Handles all effects
 
 // Audio Control
 AudioControlSGTL5000 audioShield;
 
-char *skipSpaces(char *s) {
+char *skipSpaces(char *s) { 
+    /* This function takes a char* as input and returns char* as output and skips spaces at the beginning*/
     while (*s && isspace((unsigned char)*s)) s++;
     return s;
 }
 
 void resetAudioGraph() {
+    /* Clear all connections, effects, ...*/
     for (int i = 0; i < connCount; i++) {
         delete audioConns[i];
         audioConns[i] = nullptr;
@@ -56,6 +60,7 @@ void parseConfig(char *config) {
     nodeCount = 0;
     connCount = 0;
 
+    /* Start of config parsing*/
     char *nodesStart = strstr(config, "NODES[");
     if (!nodesStart) return;
     nodesStart += strlen("NODES[");
@@ -85,9 +90,11 @@ void parseConfig(char *config) {
             n.params[n.paramCount++] = param;
             ptr += numChars;           // Advance pointer past the scanned number
             ptr = skipSpaces(ptr);     // Skip any whitespace if necessary
-        }
+        } 
+        /* End of node parser*/
 
         Serial.println(n.type);
+        /* This code is pretty bad, maybe there is a better way to do that than this big elif chain*/
         if (strcmp(n.type, "in") == 0) {
             n.audioObj = &audioInput;
         }
@@ -120,14 +127,25 @@ void parseConfig(char *config) {
             ((Compressor*)effects[nodeCount])->setParamValue("ratio", n.params[1]);
             ((Compressor*)effects[nodeCount])->setParamValue("attack", n.params[2]);
             ((Compressor*)effects[nodeCount])->setParamValue("release", n.params[3]);
+            n.audioObj = effects[nodeCount];
         } else if (strcmp(n.type, "gate") == 0) {
-            Serial.println("Gate");
+            effects[nodeCount] = new newNoiseGate();
+            ((newNoiseGate*)effects[nodeCount])->setParamValue("threshold", n.params[0]);
+            ((newNoiseGate*)effects[nodeCount])->setParamValue("attack", 0.01);
+            ((newNoiseGate*)effects[nodeCount])->setParamValue("hold", 0.01);
+            ((newNoiseGate*)effects[nodeCount])->setParamValue("release", 0.1);
+            n.audioObj = effects[nodeCount];
+        } else if (strcmp(n.type, "eq") == 0) {
+            effects[nodeCount] = new PeakEQ();
+            ((PeakEQ*)effects[nodeCount])->setParameters(n.params[0], n.params[0], n.params[1]);
+            n.audioObj = effects[nodeCount];
         }
         nodes[nodeCount++] = n;
         token = strtok(NULL, ",");
     }
     *nodesEnd = ']';
 
+    /* Connections parser*/
     char *connsStart = strstr(nodesEnd, "CONNS[");
     if (!connsStart) return;
     connsStart += strlen("CONNS[");
@@ -146,6 +164,7 @@ void parseConfig(char *config) {
         token = strtok(NULL, ",");
     }
     *connsEnd = ']';
+    /* End of connections parser*/
 
     for (int i = 0; i < connCount; i++) {
         Node *fromNode = nullptr;
@@ -156,6 +175,7 @@ void parseConfig(char *config) {
             if (nodes[j].id == conns[i].to) toNode = &nodes[j];
         }
 
+        /* Creating the patch coord*/
         if (fromNode && toNode && fromNode->audioObj && toNode->audioObj) {
             int fromChannel = (strcmp(fromNode->type, "in") == 0) ? fromNode->params[0] - 1 : 0;
             int toChannel = (strcmp(toNode->type, "out") == 0) ? toNode->params[0] - 1 : 0;
@@ -170,7 +190,7 @@ void setup() {
     Serial.begin(115200);
     while (!Serial) {}
 
-    AudioMemory(400);
+    AudioMemory(400); // Needed for big effects (freeverb)
     audioShield.enable();
     audioShield.inputSelect(AUDIO_INPUT_LINEIN);
     audioShield.volume(0.8);
@@ -182,12 +202,12 @@ void loop() {
     static int bufferIndex = 0;
 
     while (Serial.available()) {
-        char c = Serial.read();
+        char c = Serial.read(); // Getting the config string
         if (c == '\n') {
             inputBuffer[bufferIndex] = '\0';
             Serial.println("\nReceived new config:");
             Serial.println(inputBuffer);
-            parseConfig(inputBuffer);
+            parseConfig(inputBuffer); // Parsing and updating
             bufferIndex = 0;
         } else if (bufferIndex < sizeof(inputBuffer) - 1) {
             inputBuffer[bufferIndex++] = c;

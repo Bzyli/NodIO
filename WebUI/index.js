@@ -7,6 +7,7 @@ import VolumeNode from "./Nodes/VolumeNode.js";
 import ReverbNode from "./Nodes/ReverbNode.js";
 import CompressorNode from "./Nodes/CompressorNode.js";
 import GateNode from "./Nodes/GateNode.js";
+import ParamEqNode from "./Nodes/ParamEqNode.js";
 
 class NodeEditor {
   constructor(containerId) {
@@ -112,6 +113,8 @@ class NodeEditor {
       node = new CompressorNode(this, id, x, y);
     } else if (type === 'gate') {
       node = new GateNode(this, id, x, y);
+    } else if (type === 'paramEQ') {
+      node = new ParamEqNode(this, id, x, y);
     }
     this.nodes.push(node);
   }

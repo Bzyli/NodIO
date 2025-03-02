@@ -1,5 +1,5 @@
 /* ------------------------------------------------------------
-name: "Compressor"
+name: "newNoiseGate"
 Code generated with Faust 2.79.0 (https://faust.grame.fr)
 Compilation options: -a /usr/local/share/faust/teensy/teensy.cpp -lang cpp -i -ct 1 -es 1 -mcd 16 -mdd 1024 -mdy 33 -uim -single -ftz 0
 ------------------------------------------------------------ */
@@ -44,7 +44,7 @@ Compilation options: -a /usr/local/share/faust/teensy/teensy.cpp -lang cpp -i -c
 
 #include <string.h> // for memset
 
-#include "Compressor.h"
+#include "newNoiseGate.h"
 
 // IMPORTANT: in order for MapUI to work, the teensy linker must be g++
 /************************** BEGIN MapUI.h ******************************
@@ -10354,41 +10354,45 @@ struct dsp_poly_factory : public dsp_factory {
 struct mydsp : public dsp {
 	
 	FAUSTFLOAT fHslider0;
+	FAUSTFLOAT fHslider1;
+	FAUSTFLOAT fHslider2;
 	int fSampleRate;
 	float fConst0;
 	float fConst1;
-	float fConst2;
 	float fRec1[2];
-	float fVec0[2];
-	int iRec0[2];
-	FAUSTFLOAT fHslider1;
-	FAUSTFLOAT fHslider2;
+	int iVec0[2];
 	FAUSTFLOAT fHslider3;
-	FAUSTFLOAT fHslider4;
+	int iRec2[2];
+	float fRec0[2];
 	
 	mydsp() {
 	}
 	
 	void metadata(Meta* m) { 
+		m->declare("analyzers.lib/amp_follower_ar:author", "Jonatan Liljedahl, revised by Romain Michon");
+		m->declare("analyzers.lib/name", "Faust Analyzer Library");
+		m->declare("analyzers.lib/version", "1.2.0");
 		m->declare("basics.lib/name", "Faust Basic Element Library");
 		m->declare("basics.lib/version", "1.21.0");
 		m->declare("compile_options", "-a /usr/local/share/faust/teensy/teensy.cpp -lang cpp -i -ct 1 -es 1 -mcd 16 -mdd 1024 -mdy 33 -uim -single -ftz 0");
-		m->declare("envelopes.lib/ar:author", "Yann Orlarey, Stéphane Letz");
-		m->declare("envelopes.lib/author", "GRAME");
-		m->declare("envelopes.lib/copyright", "GRAME");
-		m->declare("envelopes.lib/license", "LGPL with exception");
-		m->declare("envelopes.lib/name", "Faust Envelope Library");
-		m->declare("envelopes.lib/version", "1.3.0");
-		m->declare("filename", "Compressor.dsp");
+		m->declare("filename", "newNoiseGate.dsp");
 		m->declare("maths.lib/author", "GRAME");
 		m->declare("maths.lib/copyright", "GRAME");
 		m->declare("maths.lib/license", "LGPL with exception");
 		m->declare("maths.lib/name", "Faust Math Library");
 		m->declare("maths.lib/version", "2.8.1");
-		m->declare("name", "Compressor");
+		m->declare("misceffects.lib/gate_gain_mono:author", "Julius O. Smith III");
+		m->declare("misceffects.lib/gate_gain_mono:license", "STK-4.3");
+		m->declare("misceffects.lib/gate_mono:author", "Julius O. Smith III");
+		m->declare("misceffects.lib/gate_mono:license", "STK-4.3");
+		m->declare("misceffects.lib/name", "Misc Effects Library");
+		m->declare("misceffects.lib/version", "2.5.0");
+		m->declare("name", "newNoiseGate");
 		m->declare("platform.lib/name", "Generic Platform Library");
 		m->declare("platform.lib/version", "1.3.0");
 		m->declare("signals.lib/name", "Faust Signal Routing Library");
+		m->declare("signals.lib/onePoleSwitching:author", "Jonatan Liljedahl, revised by Dario Sanfilippo");
+		m->declare("signals.lib/onePoleSwitching:licence", "STK-4.3");
 		m->declare("signals.lib/version", "1.6.0");
 	}
 
@@ -10405,16 +10409,14 @@ struct mydsp : public dsp {
 	virtual void instanceConstants(int sample_rate) {
 		fSampleRate = sample_rate;
 		fConst0 = std::min<float>(1.92e+05f, std::max<float>(1.0f, float(fSampleRate)));
-		fConst1 = 44.1f / fConst0;
-		fConst2 = 1.0f - fConst1;
+		fConst1 = 1.0f / fConst0;
 	}
 	
 	virtual void instanceResetUserInterface() {
-		fHslider0 = FAUSTFLOAT(-1e+01f);
+		fHslider0 = FAUSTFLOAT(-4e+01f);
 		fHslider1 = FAUSTFLOAT(0.01f);
 		fHslider2 = FAUSTFLOAT(0.1f);
-		fHslider3 = FAUSTFLOAT(4.0f);
-		fHslider4 = FAUSTFLOAT(6.0f);
+		fHslider3 = FAUSTFLOAT(0.01f);
 	}
 	
 	virtual void instanceClear() {
@@ -10422,10 +10424,13 @@ struct mydsp : public dsp {
 			fRec1[l0] = 0.0f;
 		}
 		for (int l1 = 0; l1 < 2; l1 = l1 + 1) {
-			fVec0[l1] = 0.0f;
+			iVec0[l1] = 0;
 		}
 		for (int l2 = 0; l2 < 2; l2 = l2 + 1) {
-			iRec0[l2] = 0;
+			iRec2[l2] = 0;
+		}
+		for (int l3 = 0; l3 < 2; l3 = l3 + 1) {
+			fRec0[l3] = 0.0f;
 		}
 	}
 	
@@ -10449,38 +10454,43 @@ struct mydsp : public dsp {
 	}
 	
 	virtual void buildUserInterface(UI* ui_interface) {
-		ui_interface->openVerticalBox("Compressor");
+		ui_interface->openVerticalBox("newNoiseGate");
 		ui_interface->addHorizontalSlider("attack", &fHslider1, FAUSTFLOAT(0.01f), FAUSTFLOAT(0.001f), FAUSTFLOAT(0.1f), FAUSTFLOAT(0.001f));
-		ui_interface->addHorizontalSlider("makeupGain", &fHslider4, FAUSTFLOAT(6.0f), FAUSTFLOAT(0.0f), FAUSTFLOAT(2e+01f), FAUSTFLOAT(0.1f));
-		ui_interface->addHorizontalSlider("ratio", &fHslider3, FAUSTFLOAT(4.0f), FAUSTFLOAT(1.0f), FAUSTFLOAT(2e+01f), FAUSTFLOAT(0.1f));
+		ui_interface->addHorizontalSlider("hold", &fHslider3, FAUSTFLOAT(0.01f), FAUSTFLOAT(0.01f), FAUSTFLOAT(0.5f), FAUSTFLOAT(0.01f));
 		ui_interface->addHorizontalSlider("release", &fHslider2, FAUSTFLOAT(0.1f), FAUSTFLOAT(0.01f), FAUSTFLOAT(0.5f), FAUSTFLOAT(0.01f));
-		ui_interface->addHorizontalSlider("threshold", &fHslider0, FAUSTFLOAT(-1e+01f), FAUSTFLOAT(-4e+01f), FAUSTFLOAT(0.0f), FAUSTFLOAT(0.1f));
+		ui_interface->addHorizontalSlider("threshold", &fHslider0, FAUSTFLOAT(-4e+01f), FAUSTFLOAT(-1.2e+02f), FAUSTFLOAT(0.0f), FAUSTFLOAT(0.1f));
 		ui_interface->closeBox();
 	}
 	
 	virtual void compute(int count, FAUSTFLOAT** RESTRICT inputs, FAUSTFLOAT** RESTRICT outputs) {
 		FAUSTFLOAT* input0 = inputs[0];
 		FAUSTFLOAT* output0 = outputs[0];
-		float fSlow0 = float(fHslider0);
-		float fSlow1 = std::max<float>(1.0f, fConst0 * float(fHslider1));
-		float fSlow2 = 1.0f / fSlow1;
-		float fSlow3 = 1.0f / std::max<float>(1.0f, fConst0 * float(fHslider2));
-		float fSlow4 = 1.0f / float(fHslider3);
-		float fSlow5 = std::pow(1e+01f, 0.05f * float(fHslider4));
+		float fSlow0 = std::pow(1e+01f, 0.05f * float(fHslider0));
+		float fSlow1 = float(fHslider1);
+		float fSlow2 = float(fHslider2);
+		float fSlow3 = std::min<float>(fSlow1, fSlow2);
+		int iSlow4 = std::fabs(fSlow3) < 1.1920929e-07f;
+		float fSlow5 = ((iSlow4) ? 0.0f : std::exp(-(fConst1 / ((iSlow4) ? 1.0f : fSlow3))));
+		float fSlow6 = 1.0f - fSlow5;
+		int iSlow7 = int(fConst0 * float(fHslider3));
+		int iSlow8 = std::fabs(fSlow2) < 1.1920929e-07f;
+		float fSlow9 = ((iSlow8) ? 0.0f : std::exp(-(fConst1 / ((iSlow8) ? 1.0f : fSlow2))));
+		int iSlow10 = std::fabs(fSlow1) < 1.1920929e-07f;
+		float fSlow11 = ((iSlow10) ? 0.0f : std::exp(-(fConst1 / ((iSlow10) ? 1.0f : fSlow1))));
 		for (int i0 = 0; i0 < count; i0 = i0 + 1) {
 			float fTemp0 = float(input0[i0]);
-			fRec1[0] = fConst1 * std::fabs(fTemp0) + fConst2 * fRec1[1];
-			float fTemp1 = std::log10(fRec1[0]);
-			fVec0[0] = fTemp1;
-			float fTemp2 = 2e+01f * fVec0[1];
-			float fTemp3 = 2e+01f * fTemp1;
-			iRec0[0] = (iRec0[1] + (iRec0[1] > 0)) * (fTemp3 <= fTemp2) + (fTemp3 > fTemp2);
-			float fTemp4 = float(iRec0[0]);
-			float fTemp5 = std::max<float>(0.0f, std::min<float>(fSlow2 * fTemp4, fSlow3 * (fSlow1 - fTemp4) + 1.0f));
-			output0[i0] = FAUSTFLOAT(fSlow5 * fTemp0 * ((fTemp5 > fSlow0) ? std::pow(1e+01f, 0.05f * (fSlow0 + fSlow4 * (fTemp5 - fSlow0))) : 1.0f));
+			fRec1[0] = std::fabs(fTemp0) * fSlow6 + fRec1[1] * fSlow5;
+			int iTemp1 = fRec1[0] > fSlow0;
+			iVec0[0] = iTemp1;
+			iRec2[0] = std::max<int>(iSlow7 * (iTemp1 < iVec0[1]), iRec2[1] + -1);
+			float fTemp2 = std::fabs(std::max<float>(float(iTemp1), float(iRec2[0] > 0)));
+			float fTemp3 = ((fTemp2 > fRec0[1]) ? fSlow11 : fSlow9);
+			fRec0[0] = fTemp2 * (1.0f - fTemp3) + fRec0[1] * fTemp3;
+			output0[i0] = FAUSTFLOAT(fTemp0 * fRec0[0]);
 			fRec1[1] = fRec1[0];
-			fVec0[1] = fVec0[0];
-			iRec0[1] = iRec0[0];
+			iVec0[1] = iVec0[0];
+			iRec2[1] = iRec2[0];
+			fRec0[1] = fRec0[0];
 		}
 	}
 
@@ -10488,26 +10498,24 @@ struct mydsp : public dsp {
 
 #ifdef FAUST_UIMACROS
 	
-	#define FAUST_FILE_NAME "Compressor.dsp"
+	#define FAUST_FILE_NAME "newNoiseGate.dsp"
 	#define FAUST_CLASS_NAME "mydsp"
 	#define FAUST_COMPILATION_OPIONS "-a /usr/local/share/faust/teensy/teensy.cpp -lang cpp -i -ct 1 -es 1 -mcd 16 -mdd 1024 -mdy 33 -uim -single -ftz 0"
 	#define FAUST_INPUTS 1
 	#define FAUST_OUTPUTS 1
-	#define FAUST_ACTIVES 5
+	#define FAUST_ACTIVES 4
 	#define FAUST_PASSIVES 0
 
 	FAUST_ADDHORIZONTALSLIDER("attack", fHslider1, 0.01f, 0.001f, 0.1f, 0.001f);
-	FAUST_ADDHORIZONTALSLIDER("makeupGain", fHslider4, 6.0f, 0.0f, 2e+01f, 0.1f);
-	FAUST_ADDHORIZONTALSLIDER("ratio", fHslider3, 4.0f, 1.0f, 2e+01f, 0.1f);
+	FAUST_ADDHORIZONTALSLIDER("hold", fHslider3, 0.01f, 0.01f, 0.5f, 0.01f);
 	FAUST_ADDHORIZONTALSLIDER("release", fHslider2, 0.1f, 0.01f, 0.5f, 0.01f);
-	FAUST_ADDHORIZONTALSLIDER("threshold", fHslider0, -1e+01f, -4e+01f, 0.0f, 0.1f);
+	FAUST_ADDHORIZONTALSLIDER("threshold", fHslider0, -4e+01f, -1.2e+02f, 0.0f, 0.1f);
 
 	#define FAUST_LIST_ACTIVES(p) \
 		p(HORIZONTALSLIDER, attack, "attack", fHslider1, 0.01f, 0.001f, 0.1f, 0.001f) \
-		p(HORIZONTALSLIDER, makeupGain, "makeupGain", fHslider4, 6.0f, 0.0f, 2e+01f, 0.1f) \
-		p(HORIZONTALSLIDER, ratio, "ratio", fHslider3, 4.0f, 1.0f, 2e+01f, 0.1f) \
+		p(HORIZONTALSLIDER, hold, "hold", fHslider3, 0.01f, 0.01f, 0.5f, 0.01f) \
 		p(HORIZONTALSLIDER, release, "release", fHslider2, 0.1f, 0.01f, 0.5f, 0.01f) \
-		p(HORIZONTALSLIDER, threshold, "threshold", fHslider0, -1e+01f, -4e+01f, 0.0f, 0.1f) \
+		p(HORIZONTALSLIDER, threshold, "threshold", fHslider0, -4e+01f, -1.2e+02f, 0.0f, 0.1f) \
 
 	#define FAUST_LIST_PASSIVES(p) \
 
@@ -10529,7 +10537,7 @@ std::list<GUI*> GUI::fGuiList;
 ztimedmap GUI::gTimedZoneMap;
 #endif
 
-Compressor::Compressor() : AudioStream(FAUST_INPUTS, new audio_block_t*[FAUST_INPUTS])
+newNoiseGate::newNoiseGate() : AudioStream(FAUST_INPUTS, new audio_block_t*[FAUST_INPUTS])
 {
 #ifdef NVOICES
     int nvoices = NVOICES;
@@ -10571,7 +10579,7 @@ Compressor::Compressor() : AudioStream(FAUST_INPUTS, new audio_block_t*[FAUST_IN
 #endif
 }
 
-Compressor::~Compressor()
+newNoiseGate::~newNoiseGate()
 {
     delete fDSP;
     delete fUI;
@@ -10590,7 +10598,7 @@ Compressor::~Compressor()
 }
 
 template <int INPUTS, int OUTPUTS>
-void Compressor::updateImp(void)
+void newNoiseGate::updateImp(void)
 {
 #if MIDICTRL
     // Process the MIDI messages received by the Teensy
@@ -10631,14 +10639,14 @@ void Compressor::updateImp(void)
     }
 }
 
-void Compressor::update(void) { updateImp<FAUST_INPUTS, FAUST_OUTPUTS>(); }
+void newNoiseGate::update(void) { updateImp<FAUST_INPUTS, FAUST_OUTPUTS>(); }
 
-void Compressor::setParamValue(const std::string& path, float value)
+void newNoiseGate::setParamValue(const std::string& path, float value)
 {
     fUI->setParamValue(path, value);
 }
 
-float Compressor::getParamValue(const std::string& path)
+float newNoiseGate::getParamValue(const std::string& path)
 {
     return fUI->getParamValue(path);
 }
